@@ -1,8 +1,10 @@
 export default defineNuxtConfig({
+  compatibilityDate: '2026-09-16',
+
   devtools: { enabled: true },
 
   css: [
-    '~/assets/css/main.css',
+    '~/assets/css/main.css'
   ],
 
   runtimeConfig: {
