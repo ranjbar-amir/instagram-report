@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import DatePicker from 'vue3-persian-datetime-picker'
+import { ref, computed, onMounted } from 'vue'
 
 const { getSnapshots } = useDatabase()
 
@@ -9,13 +8,12 @@ const toDate = ref('')
 const snapshots = ref<any[]>([])
 const loading = ref(false)
 
-// محاسبه pivot بر اساس تاریخ
 const pivotData = computed(() => {
   const accounts = new Set(snapshots.value.map(s => s.username))
   const dates = [...new Set(snapshots.value.map(s => s.snapshot_date))].sort()
-  
+
   const rows: any[] = []
-  
+
   accounts.forEach(username => {
     const row: any = { username }
     dates.forEach(date => {
@@ -26,23 +24,17 @@ const pivotData = computed(() => {
     })
     rows.push(row)
   })
-  
+
   return { dates, rows }
 })
 
 async function loadSnapshots() {
   loading.value = true
   try {
-    // تبدیل تاریخ فارسی به میلادی
     const params: any = {}
-    
-    if (fromDate.value) {
-      params.from_date = fromDate.value
-    }
-    if (toDate.value) {
-      params.to_date = toDate.value
-    }
-    
+    if (fromDate.value) params.from_date = fromDate.value
+    if (toDate.value) params.to_date = toDate.value
+
     const result: any = await getSnapshots(params)
     snapshots.value = result.data || []
   } finally {
@@ -62,7 +54,7 @@ async function handleExport() {
   const params = new URLSearchParams()
   if (fromDate.value) params.append('from_date', fromDate.value)
   if (toDate.value) params.append('to_date', toDate.value)
-  
+
   window.open(`/api/export/snapshots?${params.toString()}`, '_blank')
 }
 
@@ -72,43 +64,53 @@ onMounted(loadSnapshots)
 <template>
   <div class="snapshots-page">
     <h1>گزارش اسنپ‌شات‌ها</h1>
-    
+
     <div class="filters">
       <div class="date-picker-group">
         <label>از تاریخ:</label>
-        <DatePicker 
-          v-model="fromDate" 
-          format="YYYY-MM-DD"
-          display-format="jYYYY-jMM-jDD"
-          placeholder="انتخاب تاریخ شروع"
-        />
+        <ClientOnly>
+          <DatePicker
+            v-model="fromDate"
+            format="YYYY-MM-DD"
+            display-format="jYYYY-jMM-jDD"
+            placeholder="انتخاب تاریخ شروع"
+          />
+          <template #fallback>
+            <input type="text" placeholder="در حال بارگذاری..." disabled />
+          </template>
+        </ClientOnly>
       </div>
-      
+
       <div class="date-picker-group">
         <label>تا تاریخ:</label>
-        <DatePicker 
-          v-model="toDate"
-          format="YYYY-MM-DD"
-          display-format="jYYYY-jMM-jDD"
-          placeholder="انتخاب تاریخ پایان"
-        />
+        <ClientOnly>
+          <DatePicker
+            v-model="toDate"
+            format="YYYY-MM-DD"
+            display-format="jYYYY-jMM-jDD"
+            placeholder="انتخاب تاریخ پایان"
+          />
+          <template #fallback>
+            <input type="text" placeholder="در حال بارگذاری..." disabled />
+          </template>
+        </ClientOnly>
       </div>
-      
+
       <button @click="loadSnapshots" class="btn-filter">
         🔍 فیلتر
       </button>
-      
+
       <button @click="handleExport" class="btn-export">
         📥 خروجی اکسل
       </button>
     </div>
-    
+
     <div v-if="loading" class="loading">در حال بارگذاری...</div>
-    
+
     <div v-else-if="pivotData.dates.length === 0" class="empty">
       اسنپ‌شاتی یافت نشد
     </div>
-    
+
     <div v-else class="table-container">
       <table class="pivot-table">
         <thead>
