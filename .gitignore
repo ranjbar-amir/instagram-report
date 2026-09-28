@@ -17,6 +17,11 @@ logs
 .DS_Store
 .fleet
 .idea
+.nuxt
+.output
+.freebuff
+# database 
+data
 
 # Local env files
 .env

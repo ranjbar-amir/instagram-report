@@ -9,24 +9,46 @@ const snapshots = ref<any[]>([])
 const loading = ref(false)
 
 const pivotData = computed(() => {
-  const accounts = new Set(snapshots.value.map(s => s.username))
   const dates = [...new Set(snapshots.value.map(s => s.snapshot_date))].sort()
+  const usernames = [...new Set(snapshots.value.map(s => s.username))].sort((a, b) => a.localeCompare(b))
 
-  const rows: any[] = []
-
-  accounts.forEach(username => {
+  const rows = usernames.map(username => {
     const row: any = { username }
+
     dates.forEach(date => {
       const snap = snapshots.value.find(
         s => s.username === username && s.snapshot_date === date
       )
       row[date] = snap ? snap.followers : null
     })
-    rows.push(row)
+
+    // روند رشد: اولین و آخرین مقدار ثبت‌شده‌ی این پیج در بازه‌ی انتخابی
+    const present = dates.map(date => row[date]).filter(value => value !== null) as number[]
+    const first = present.length ? present[0] : null
+    const last = present.length ? present[present.length - 1] : null
+
+    row.first = first
+    row.last = last
+    row.change = first !== null && last !== null ? last - first : null
+    row.changePercent = first ? Math.round((((last as number) - first) / first) * 10000) / 100 : null
+
+    return row
   })
 
   return { dates, rows }
 })
+
+/** رنگ و علامت روند رشد */
+function growthClass(change: number | null): string {
+  if (change === null || change === 0) return ''
+  return change > 0 ? 'up' : 'down'
+}
+
+function signed(value: number | null): string {
+  if (value === null) return '-'
+  const prefix = value > 0 ? '+' : ''
+  return prefix + value.toLocaleString('fa-IR')
+}
 
 async function loadSnapshots() {
   loading.value = true
@@ -119,6 +141,9 @@ onMounted(loadSnapshots)
             <th v-for="date in pivotData.dates" :key="date">
               {{ formatDate(date) }}
             </th>
+            <th>آخرین مقدار</th>
+            <th>تغییر</th>
+            <th>درصد تغییر</th>
           </tr>
         </thead>
         <tbody>
@@ -126,6 +151,11 @@ onMounted(loadSnapshots)
             <td class="username-cell">@{{ row.username }}</td>
             <td v-for="date in pivotData.dates" :key="date" class="ltr">
               {{ row[date] !== null ? row[date].toLocaleString('fa-IR') : '-' }}
+            </td>
+            <td class="ltr">{{ row.last !== null ? row.last.toLocaleString('fa-IR') : '-' }}</td>
+            <td class="ltr" :class="growthClass(row.change)">{{ signed(row.change) }}</td>
+            <td class="ltr" :class="growthClass(row.change)">
+              {{ row.changePercent !== null ? signed(row.changePercent) + '٪' : '-' }}
             </td>
           </tr>
         </tbody>
@@ -212,6 +242,16 @@ onMounted(loadSnapshots)
 
 .ltr {
   direction: ltr;
+}
+
+.up {
+  color: #047857;
+  font-weight: 600;
+}
+
+.down {
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 .loading, .empty {

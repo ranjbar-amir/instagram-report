@@ -37,19 +37,40 @@ async function handleValidate() {
   }
 }
 
-async function handleAdd() {
-  if (!previewData.value) {
-    error.value = 'ابتدا اطلاعات پیج را دریافت کنید'
-    return
-  }
-  
+async function handleAddWithoutData() {
+  if (!username.value.trim()) return
+
   loading.value = true
   error.value = ''
-  
+
   try {
-    await addAccount(username.value.trim())
+    await addAccount(username.value.trim(), true)
     emit('added')
-    
+
+    // ریست فرم
+    username.value = ''
+    previewData.value = null
+  } catch (e: any) {
+    error.value = e.data?.message || 'خطا در افزودن پیج'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleAdd() {
+  if (!previewData.value) {
+    // وقتی پیش‌نمایشی نیست، مستقیم به‌صورت force اضافه کن
+    await handleAddWithoutData()
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    await addAccount(username.value.trim(), false)
+    emit('added')
+
     // ریست فرم
     username.value = ''
     previewData.value = null
@@ -85,7 +106,15 @@ async function handleAdd() {
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
-    
+
+    <button
+      @click="handleAddWithoutData"
+      :disabled="loading || !username.trim()"
+      class="btn btn-secondary offline-btn"
+    >
+      افزودن بدون بررسی (آفلاین)
+    </button>
+
     <div v-if="previewData" class="preview-card">
       <div class="preview-header">
         <img 
@@ -138,6 +167,11 @@ async function handleAdd() {
   display: flex;
   gap: 8px;
   margin: 16px 0;
+}
+
+.offline-btn {
+  width: 100%;
+  margin-bottom: 16px;
 }
 
 .input {

@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { buildSnapshotsPivot, formatJalali } from './snapshots-report'
 
 export async function generateReportExcel(accounts: any[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
@@ -56,8 +57,55 @@ export async function generateReportExcel(accounts: any[]): Promise<Buffer> {
 
 export async function generateSnapshotsExcel(snapshots: any[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  const sheet = workbook.addWorksheet('اسنپ‌شات‌ها')
-  
+  const pivot = buildSnapshotsPivot(snapshots)
+
+  // ---------- شیت ۱: گزارش پیوت (تاریخ × فالوور) + روند رشد ----------
+  if (pivot.dates.length > 0) {
+    const sheet = workbook.addWorksheet('گزارش پیوت')
+    sheet.views = [{ rightToLeft: true }]
+
+    sheet.columns = [
+      { header: 'پیج', key: 'username', width: 22 },
+      ...pivot.dates.map(date => ({ header: formatJalali(date), key: date, width: 16 })),
+      { header: 'آخرین مقدار', key: 'last', width: 16 },
+      { header: 'تغییر', key: 'change', width: 14 },
+      { header: 'درصد تغییر', key: 'changePercent', width: 14 },
+      { header: 'بازه (روز)', key: 'days', width: 12 }
+    ]
+
+    const pivotHeader = sheet.getRow(1)
+    pivotHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    pivotHeader.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF8B5CF6' }
+    }
+    pivotHeader.alignment = { horizontal: 'center', vertical: 'middle' }
+
+    for (const row of pivot.rows) {
+      const data: Record<string, any> = { username: `@${row.username}` }
+      for (const value of row.values) data[value.date] = value.followers
+      data.last = row.last
+      data.change = row.change
+      data.changePercent = row.changePercent
+      data.days = row.days
+
+      const added = sheet.addRow(data)
+
+      // سبز = رشد، قرمز = افت
+      const color = row.change === null || row.change === 0
+        ? null
+        : (row.change > 0 ? 'FF047857' : 'FFB91C1C')
+      if (color) {
+        added.getCell('change').font = { bold: true, color: { argb: color } }
+        added.getCell('changePercent').font = { bold: true, color: { argb: color } }
+      }
+    }
+  }
+
+  // ---------- شیت ۲: داده خام ----------
+  const sheet = workbook.addWorksheet('داده خام')
+
   sheet.views = [{ rightToLeft: true }]
   
   sheet.columns = [

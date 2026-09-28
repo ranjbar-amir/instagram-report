@@ -7,6 +7,8 @@ const { fetchProfile } = useInstagram()
 const accounts = ref<any[]>([])
 const loading = ref(true)
 const refreshingId = ref<number | null>(null)
+const refreshingAll = ref(false)
+const refreshSummary = ref('')
 
 async function loadAccounts() {
   loading.value = true
@@ -15,6 +17,22 @@ async function loadAccounts() {
     accounts.value = result.data || []
   } finally {
     loading.value = false
+  }
+}
+
+async function handleRefreshAll() {
+  if (!confirm('همه پیج‌ها بروزرسانی شوند؟ ممکن است چند دقیقه طول بکشد.')) return
+
+  refreshingAll.value = true
+  refreshSummary.value = ''
+  try {
+    const result: any = await $fetch('/api/instagram/refresh-all', { method: 'POST' })
+    refreshSummary.value = `${result.data.succeeded} موفق، ${result.data.failed} ناموفق`
+    await loadAccounts()
+  } catch (e: any) {
+    refreshSummary.value = e.data?.message || 'خطا در بروزرسانی گروهی'
+  } finally {
+    refreshingAll.value = false
   }
 }
 
@@ -54,7 +72,20 @@ onMounted(loadAccounts)
 <template>
   <div class="management-page">
     <h1>مدیریت پیج‌ها</h1>
-    
+
+    <ProxySettings @saved="() => {}" />
+
+    <div class="bulk-row">
+      <button
+        @click="handleRefreshAll"
+        :disabled="refreshingAll || accounts.length === 0"
+        class="btn-bulk"
+      >
+        {{ refreshingAll ? '⏳ در حال بروزرسانی همه...' : '🔄 بروزرسانی همه پیج‌ها' }}
+      </button>
+      <span v-if="refreshSummary" class="bulk-summary">{{ refreshSummary }}</span>
+    </div>
+
     <AddAccountForm @added="loadAccounts" />
     
     <div v-if="loading" class="loading">در حال بارگذاری...</div>
@@ -86,6 +117,33 @@ onMounted(loadAccounts)
 
 h1 {
   margin-bottom: 24px;
+}
+
+.bulk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.btn-bulk {
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-bulk:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bulk-summary {
+  font-size: 13px;
+  color: #374151;
 }
 
 .accounts-grid {

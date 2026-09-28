@@ -1,4 +1,4 @@
-import { fetchInstagramProfile } from '~~/server/utils/instagram-scraper'
+import { fetchInstagramProfile, resolveProxy } from '~~/server/utils/instagram-scraper'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -10,12 +10,14 @@ export default defineEventHandler(async (event) => {
       message: 'نام کاربری الزامی است'
     })
   }
-  
+
+  const proxy = await resolveProxy()
   const profile = await fetchInstagramProfile(username)
-  
+
   return {
     success: profile.success,
     error: profile.error,
+    proxy: { source: proxy.source, description: proxy.description },
     data: profile.success ? {
       username: profile.username,
       full_name: profile.full_name,

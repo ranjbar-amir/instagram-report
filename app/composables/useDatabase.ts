@@ -3,10 +3,10 @@ export const useDatabase = () => {
     return await $fetch('/api/accounts')
   }
   
-  const addAccount = async (username: string) => {
+  const addAccount = async (username: string, force = false) => {
     return await $fetch('/api/accounts', {
       method: 'POST',
-      body: { username }
+      body: { username, force }
     })
   }
   
@@ -23,6 +23,17 @@ export const useDatabase = () => {
     })
   }
   
+  /**
+   * اسنپ‌شات گروهی؛ بدون آرگومان برای همه‌ی پیج‌های لیست
+   * و با آرایه‌ی شناسه‌ها برای چند پیج مشخص.
+   */
+  const captureAllSnapshots = async (accountIds?: number[]) => {
+    return await $fetch('/api/snapshots/capture-all', {
+      method: 'POST',
+      body: accountIds?.length ? { account_ids: accountIds } : {}
+    })
+  }
+
   const getSnapshots = async (params?: {
     account_id?: number
     from_date?: string
@@ -36,6 +47,7 @@ export const useDatabase = () => {
     addAccount,
     removeAccount,
     createSnapshot,
+    captureAllSnapshots,
     getSnapshots
   }
 }

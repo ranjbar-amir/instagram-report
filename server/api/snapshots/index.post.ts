@@ -1,4 +1,4 @@
-import { createSnapshot, getAccountById } from '~~/server/utils/db'
+import { getAccountById, upsertSnapshot } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -13,11 +13,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'حساب یافت نشد' })
   }
   
-  const snapshot = createSnapshot(
+  // برای هر پیج و هر روز یک رکورد؛ اگر امروز قبلاً ثبت شده باشد بروزرسانی می‌شود
+  const { snapshot, created } = upsertSnapshot(
     account_id,
     followers || account.followers,
     snapshot_date
   )
-  
-  return { success: true, data: snapshot }
+
+  return { success: true, data: snapshot, created }
 })

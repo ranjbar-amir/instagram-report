@@ -11,8 +11,17 @@ export const useInstagram = () => {
     })
   }
   
+  /** دریافت اطلاعات همه‌ی پیج‌های لیست (ترتیبی و با فاصله) */
+  const refreshAll = async () => {
+    return await $fetch('/api/instagram/refresh-all', {
+      method: 'POST',
+      body: {}
+    })
+  }
+
   return {
     validateProfile,
-    fetchProfile
+    fetchProfile,
+    refreshAll
   }
 }

@@ -60,11 +60,30 @@ export function getDb(): Database.Database {
         FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
       );
 
-      CREATE INDEX IF NOT EXISTS idx_snapshots_account_date 
+      CREATE INDEX IF NOT EXISTS idx_snapshots_account_date
         ON snapshots(account_id, snapshot_date);
+
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `)
   }
   return db
+}
+
+// ---------- Settings ----------
+
+export function getSetting(key: string): string | null {
+  const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined
+  return row ? row.value : null
+}
+
+export function setSetting(key: string, value: string): void {
+  getDb().prepare(`
+    INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run(key, value)
 }
 
 export function getAllAccounts(): InstagramAccount[] {
@@ -79,7 +98,8 @@ export function getAccountById(id: number): InstagramAccount | undefined {
 
 export function getAccountByUsername(username: string): InstagramAccount | undefined {
   const db = getDb()
-  return db.prepare('SELECT * FROM accounts WHERE username = ?').get(username) as InstagramAccount | undefined
+  // نام کاربری اینستاگرام به بزرگی/کوچکی حروف حساس نیست
+  return db.prepare('SELECT * FROM accounts WHERE username = ? COLLATE NOCASE').get(username) as InstagramAccount | undefined
 }
 
 export function createAccount(data: {
@@ -133,17 +153,50 @@ export function deleteAccount(id: number): boolean {
   return result.changes > 0
 }
 
-export function createSnapshot(accountId: number, followers: number, snapshotDate?: string): Snapshot {
-  const db = getDb()
-  const date = snapshotDate || new Date().toISOString().split('T')[0]
+/**
+ * تاریخ امروز به وقت تهران (YYYY-MM-DD).
+ * اگر از تاریخ UTC استفاده کنیم، اسنپ‌شات‌های بعد از نیمه‌شب تهران
+ * روی روز قبل ثبت می‌شدند و گزارش پیوت دو ستون برای یک روز می‌ساخت.
+ */
+export function todayInTehran(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tehran',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date())
+}
 
-  const stmt = db.prepare(`
+/**
+ * ثبت/بروزرسانی اسنپ‌شات یک پیج برای یک روز.
+ * برای هر (پیج، روز) فقط یک رکورد نگه می‌داریم تا پیوت تاریخ×فالوور درست بماند؛
+ * اگر همان روز دوباره اسنپ‌شات بگیرید، مقدار قبلی بروزرسانی می‌شود.
+ */
+export function upsertSnapshot(
+  accountId: number,
+  followers: number,
+  snapshotDate?: string
+): { snapshot: Snapshot; created: boolean } {
+  const db = getDb()
+  const date = snapshotDate || todayInTehran()
+
+  const existing = db
+    .prepare('SELECT id FROM snapshots WHERE account_id = ? AND snapshot_date = ? ORDER BY id DESC LIMIT 1')
+    .get(accountId, date) as { id: number } | undefined
+
+  if (existing) {
+    db.prepare('UPDATE snapshots SET followers = ? WHERE id = ?').run(followers, existing.id)
+    const snapshot = db.prepare('SELECT * FROM snapshots WHERE id = ?').get(existing.id) as Snapshot
+    return { snapshot, created: false }
+  }
+
+  const result = db.prepare(`
     INSERT INTO snapshots (account_id, followers, snapshot_date)
     VALUES (?, ?, ?)
-  `)
+  `).run(accountId, followers, date)
 
-  const result = stmt.run(accountId, followers, date)
-  return db.prepare('SELECT * FROM snapshots WHERE id = ?').get(result.lastInsertRowid) as Snapshot
+  const snapshot = db.prepare('SELECT * FROM snapshots WHERE id = ?').get(result.lastInsertRowid) as Snapshot
+  return { snapshot, created: true }
 }
 
 export function getSnapshotsByDateRange(
