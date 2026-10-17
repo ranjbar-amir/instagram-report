@@ -1,6 +1,8 @@
 import { deleteAccount } from '~~/server/utils/db'
+import { requirePermission } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requirePermission(event, 'page.delete')
   const id = parseInt(getRouterParam(event, 'id') as string)
   
   if (isNaN(id)) {

@@ -1,7 +1,9 @@
 import { createAccount, getAccountByUsername } from '~~/server/utils/db'
 import { fetchInstagramProfile, cleanUsername, isValidUsername } from '~~/server/utils/instagram-scraper'
+import { requirePermission } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requirePermission(event, 'page.add')
   const body = await readBody(event)
   const { username, force } = body || {}
 

@@ -1,5 +1,6 @@
 import { getAllAccounts, getAccountById, upsertSnapshot } from '~~/server/utils/db'
 import type { InstagramAccount } from '~~/server/utils/db'
+import { requirePermission } from '~~/server/utils/auth'
 
 /**
  * اسنپ‌شات گروهی: برای همه‌ی پیج‌های لیست (یا فقط شناسه‌های داده‌شده)
@@ -7,6 +8,8 @@ import type { InstagramAccount } from '~~/server/utils/db'
  * اگر همان روز قبلاً اسنپ‌شات گرفته شده باشد، مقدار بروزرسانی می‌شود.
  */
 export default defineEventHandler(async (event) => {
+  requirePermission(event, 'snapshot.bulk')
+
   let body: any = {}
   try {
     body = (await readBody(event)) || {}

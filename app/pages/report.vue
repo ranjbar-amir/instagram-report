@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+const { can, loadUser } = useAuth()
 const { getAccounts, captureAllSnapshots } = useDatabase()
 const { fetchProfile, refreshAll } = useInstagram()
 
@@ -169,7 +170,10 @@ async function handleExport() {
   }
 }
 
-onMounted(loadAccounts)
+onMounted(async () => {
+  await loadUser()
+  await loadAccounts()
+})
 </script>
 
 <template>
@@ -179,6 +183,7 @@ onMounted(loadAccounts)
 
       <div class="action-buttons">
         <button
+          v-if="can('snapshot.bulk')"
           @click="handleSnapshotAll"
           :disabled="bulkSnapshotting || bulkFetching || accounts.length === 0"
           class="btn-bulk btn-snapshot"
@@ -196,7 +201,7 @@ onMounted(loadAccounts)
           {{ bulkFetching ? 'در حال دریافت...' : '🔄 دریافت کلی' }}
         </button>
 
-        <button @click="handleExport" class="btn-export" :disabled="accounts.length === 0">
+        <button v-if="can('snapshot.report')" @click="handleExport" class="btn-export" :disabled="accounts.length === 0">
           📥 خروجی اکسل
         </button>
       </div>
@@ -259,6 +264,7 @@ onMounted(loadAccounts)
                 {{ fetchingId === account.id ? '...' : 'دریافت لحظه‌ای' }}
               </button>
               <button
+                v-if="can('snapshot.single')"
                 @click="handleSnapshot(account)"
                 :disabled="bulkSnapshotting"
                 class="btn-sm"

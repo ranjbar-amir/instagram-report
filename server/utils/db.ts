@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
+import { hashPassword } from './auth'
 
 let db: Database.Database | null = null
 
@@ -67,9 +68,93 @@ export function getDb(): Database.Database {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL COLLATE NOCASE,
+        password TEXT NOT NULL,
+        fullname TEXT DEFAULT '',
+        userIsActive INTEGER DEFAULT 1,
+        deleted_at TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        permisionCode TEXT UNIQUE NOT NULL,
+        permisionTitle TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS user_permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        permission_id INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+        UNIQUE(user_id, permission_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        expires_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
     `)
+
+    seedPermissions(db)
+    seedAdmin(db)
   }
   return db
+}
+
+// ---------- Permissions & Seed ----------
+
+export const PERMISSION_CODES = [
+  { code: 'proxy.settings', title: 'تنظیمات پروکسی' },
+  { code: 'page.add', title: 'اضافه کردن پیج' },
+  { code: 'page.delete', title: 'حذف پیج' },
+  { code: 'snapshot.single', title: 'ثبت اسنپ شات تکی' },
+  { code: 'snapshot.bulk', title: 'ثبت اسنپ شات گروهی' },
+  { code: 'snapshot.report', title: 'گزارش اسنپ شات' },
+  { code: 'user.list', title: 'دسترسی به لیست کاربران' },
+  { code: 'user.create', title: 'ایجاد کاربر' },
+  { code: 'user.delete', title: 'حذف کاربر' },
+  { code: 'user.purge', title: 'حذف دائمی کاربر' },
+  { code: 'user.edit', title: 'ویرایش کاربر' },
+  { code: 'user.permissions', title: 'تنظیم دسترسی کاربر (permision)' }
+] as const
+
+function seedPermissions(db: Database.Database): void {
+  const insert = db.prepare(`
+    INSERT INTO permissions (permisionCode, permisionTitle) VALUES (?, ?)
+    ON CONFLICT(permisionCode) DO UPDATE SET permisionTitle = excluded.permisionTitle
+  `)
+  for (const p of PERMISSION_CODES) insert.run(p.code, p.title)
+}
+
+/**
+ * ایجاد ادمین پیش‌فرض: admin / admin123
+ * فقط بار اول — اگر ادمین حذف نشده باشد دوباره ساخته نمی‌شود.
+ */
+function seedAdmin(db: Database.Database): void {
+  const existing = db
+    .prepare("SELECT id FROM users WHERE username = 'admin' AND deleted_at IS NULL")
+    .get() as { id: number } | undefined
+  if (existing) return
+
+  const hash = hashPassword('admin123')
+  const result = db.prepare(`
+    INSERT INTO users (username, password, fullname, userIsActive)
+    VALUES ('admin', ?, 'مدیر سیستم', 1)
+  `).run(hash)
+
+  // ادمین همه دسترسی‌ها را دارد
+  const perms = db.prepare('SELECT id FROM permissions').all() as { id: number }[]
+  const insert = db.prepare('INSERT OR IGNORE INTO user_permissions (user_id, permission_id) VALUES (?, ?)')
+  for (const p of perms) insert.run(result.lastInsertRowid as number, p.id)
 }
 
 // ---------- Settings ----------

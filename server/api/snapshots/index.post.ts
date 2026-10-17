@@ -1,6 +1,8 @@
 import { getAccountById, upsertSnapshot } from '~~/server/utils/db'
+import { requirePermission } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requirePermission(event, 'snapshot.single')
   const body = await readBody(event)
   const { account_id, followers, snapshot_date } = body
   

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 
+const { can, loadUser } = useAuth()
 const { getSnapshots } = useDatabase()
 
 const fromDate = ref('')
@@ -80,7 +81,10 @@ async function handleExport() {
   window.open(`/api/export/snapshots?${params.toString()}`, '_blank')
 }
 
-onMounted(loadSnapshots)
+onMounted(async () => {
+  await loadUser()
+  await loadSnapshots()
+})
 </script>
 
 <template>
@@ -122,7 +126,7 @@ onMounted(loadSnapshots)
         🔍 فیلتر
       </button>
 
-      <button @click="handleExport" class="btn-export">
+      <button v-if="can('snapshot.report')" @click="handleExport" class="btn-export">
         📥 خروجی اکسل
       </button>
     </div>

@@ -11,7 +11,8 @@ const props = defineProps<{
     last_post_date: string | null
     profile_pic_url: string
   }
-}>()
+  canDelete?: boolean
+  canSnapshot?: boolean}>()
 
 const emit = defineEmits(['delete', 'snapshot', 'refresh'])
 
@@ -40,46 +41,46 @@ function formatDate(date: string | null): string {
 <template>
   <div class="instagram-card">
     <div class="card-header">
-      <img 
-        v-if="account.profile_pic_url" 
-        :src="account.profile_pic_url" 
+      <img
+        v-if="account.profile_pic_url"
+        :src="account.profile_pic_url"
         :alt="account.username"
         class="avatar"
       />
       <div v-else class="avatar-placeholder">
         {{ account.username.charAt(0).toUpperCase() }}
       </div>
-      
+
       <div class="user-info">
         <strong>{{ account.full_name || account.username }}</strong>
         <span class="username">@{{ account.username }}</span>
       </div>
     </div>
-    
+
     <div class="card-body">
       <div class="stat">
         <span class="stat-label">فالوور</span>
         <span class="stat-value">{{ formatFollowers(account.followers) }}</span>
       </div>
-      
+
       <div class="stat">
         <span class="stat-label">آخرین پست</span>
         <span class="stat-value small">{{ formatDate(account.last_post_date) }}</span>
       </div>
-      
+
       <div v-if="account.bio" class="bio">
         {{ account.bio }}
       </div>
     </div>
-    
+
     <div class="card-actions">
       <button @click="handleRefresh" :disabled="refreshing" class="action-btn">
         {{ refreshing ? '...' : '🔄 بروزرسانی' }}
       </button>
-      <button @click="emit('snapshot', account)" class="action-btn">
+      <button v-if="canSnapshot !== false" @click="emit('snapshot', account)" class="action-btn">
         📸 اسنپ‌شات
       </button>
-      <button @click="emit('delete', account.id)" class="action-btn danger">
+      <button v-if="canDelete !== false" @click="emit('delete', account.id)" class="action-btn danger">
         🗑️ حذف
       </button>
     </div>

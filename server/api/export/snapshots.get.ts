@@ -1,7 +1,9 @@
 import { getSnapshotsByDateRange } from '~~/server/utils/db'
 import { generateSnapshotsExcel } from '~~/server/utils/excel-generator'
+import { requirePermission } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  requirePermission(event, 'snapshot.report')
   const query = getQuery(event)
   
   const snapshots = getSnapshotsByDateRange(

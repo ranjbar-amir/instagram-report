@@ -1,8 +1,15 @@
 import { getSetting, setSetting } from '~~/server/utils/db'
 import { resolveProxy, detectLocalProxies, testProxy } from '~~/server/utils/instagram-scraper'
+import { requireAuth, requirePermission } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   const method = event.method
+
+  // خواندن وضعیت پروکسی نیازمند لاگین است؛ تغییر تنظیمات نیازمند پرمیشن
+  requireAuth(event)
+  if (method !== 'GET') {
+    requirePermission(event, 'proxy.settings')
+  }
 
   // GET: وضعیت فعلی + لیست کاندیدهای محلی برای تست
   if (method === 'GET') {

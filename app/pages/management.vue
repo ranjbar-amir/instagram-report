@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+const { can, loadUser } = useAuth()
 const { getAccounts, removeAccount, createSnapshot } = useDatabase()
 const { fetchProfile } = useInstagram()
 
@@ -48,7 +49,7 @@ async function handleRefresh(id: number) {
 
 async function handleDelete(id: number) {
   if (!confirm('آیا از حذف این پیج مطمئن هستید؟')) return
-  
+
   try {
     await removeAccount(id)
     await loadAccounts()
@@ -66,14 +67,17 @@ async function handleSnapshot(account: any) {
   }
 }
 
-onMounted(loadAccounts)
+onMounted(async () => {
+  await loadUser()
+  await loadAccounts()
+})
 </script>
 
 <template>
   <div class="management-page">
     <h1>مدیریت پیج‌ها</h1>
 
-    <ProxySettings @saved="() => {}" />
+    <ProxySettings v-if="can('proxy.settings')" @saved="() => {}" />
 
     <div class="bulk-row">
       <button
@@ -86,7 +90,7 @@ onMounted(loadAccounts)
       <span v-if="refreshSummary" class="bulk-summary">{{ refreshSummary }}</span>
     </div>
 
-    <AddAccountForm @added="loadAccounts" />
+    <AddAccountForm v-if="can('page.add')" @added="loadAccounts" />
     
     <div v-if="loading" class="loading">در حال بارگذاری...</div>
     
@@ -99,6 +103,8 @@ onMounted(loadAccounts)
         v-for="account in accounts"
         :key="account.id"
         :account="account"
+        :can-delete="can('page.delete')"
+        :can-snapshot="can('snapshot.single')"
         @delete="handleDelete"
         @snapshot="handleSnapshot"
         @refresh="handleRefresh"
