@@ -1,4 +1,4 @@
-import { requirePermission, hashPassword } from '~~/server/utils/auth'
+import { requirePermission, hashPassword, getSessionUser } from '~~/server/utils/auth'
 import { getDb } from '~~/server/utils/db'
 
 /** ویرایش کاربر — شامل ریست رمز عبور کاربران دیگر */
@@ -16,6 +16,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'کاربر یافت نشد' })
   }
 
+  const current = getSessionUser(event)
+  const isSelf = current?.id === id
+
   const body = await readBody(event)
   const { fullname, userIsActive, newPassword } = body || {}
 
@@ -27,11 +30,9 @@ export default defineEventHandler(async (event) => {
     values.push(fullname)
   }
   if (userIsActive !== undefined) {
-    if (id === user.id || user.id === id) {
-      // کاربر خودش نمی‌تواند خودش را غیرفعال کند
-      if (userIsActive === false) {
-        throw createError({ statusCode: 400, message: 'نمی‌توانید حساب خودتان را غیرفعال کنید' })
-      }
+    // کاربر فقط خودش را نمی‌تواند غیرفعال کند — غیرفعال کردن بقیه آزاد است
+    if (isSelf && userIsActive === false) {
+      throw createError({ statusCode: 400, message: 'نمی‌توانید حساب خودتان را غیرفعال کنید' })
     }
     updates.push('userIsActive = ?')
     values.push(userIsActive ? 1 : 0)

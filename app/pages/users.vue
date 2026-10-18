@@ -218,6 +218,13 @@ onMounted(async () => {
 
             <td v-if="editingId === u.id">
               <label><input v-model="editActive" type="checkbox" /> فعال</label>
+              <input
+                v-model="editNewPassword"
+                type="password"
+                dir="ltr"
+                placeholder="رمز جدید (خالی = بدون تغییر)"
+                class="pw-input"
+              />
             </td>
             <td v-else>
               <span :class="u.userIsActive ? 'badge ok' : 'badge off'">
@@ -302,6 +309,17 @@ onMounted(async () => {
 }
 
 .ltr-input { text-align: left; }
+
+.pw-input {
+  width: 220px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  direction: ltr;
+  text-align: left;
+}
 
 .btn-primary {
   padding: 9px 18px;
